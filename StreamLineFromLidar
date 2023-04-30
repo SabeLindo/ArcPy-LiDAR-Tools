@@ -1,0 +1,55 @@
+import arcpy
+# Set WorkspaceEnvironment
+
+arcpy.env.workspace = arcpy.GetParameterAsText(0)
+inLasD = arcpy.GetParameterAsText(1)
+
+# LAS Dataset to DEM, extract LAS Ground
+LASLyr1 = arcpy.CreateUniqueName(inLasD + 'Grnd')
+arcpy.MakeLasDatasetLayer_management(inLasD,LASLyr1,"2")
+
+# LAS Ground to Raster
+
+DEMName = arcpy.GetParameterAsText(2)
+arcpy.LasDatasetToRaster_conversion(LASLyr1, DEMName, "ELEVATION", "BINNING IDW NATURAL_NEIGHBOR", "FLOAT", "CELLSIZE", 3, 1)
+
+# Fill DEM Raster
+FillZ = arcpy.GetParameterAsText(3)
+FillDem = arcpy.sa.Fill(DEMName, FillZ)
+OutFill = arcpy.GetParameterAsText(0) + "\out_fill"
+FillDem.save(OutFill)
+
+# Flow Direction
+FlowDir = arcpy.sa.FlowDirection("out_fill", "", "")
+OutFlow = arcpy.GetParameterAsText(0) + "\out_flow"
+FlowDir.save(OutFlow)
+
+# Flow Accumulation
+FlowAcc = arcpy.sa.FlowAccumulation("out_flow", "", "INTEGER", "")
+OutFlowAc = arcpy.GetParameterAsText(0) + "\out_acc"
+FlowAcc.save(OutFlowAc)
+
+#Con Tool
+GreatThan = "VALUE >" + arcpy.GetParameterAsText(4)
+outcon = arcpy.sa.Con("out_acc", 1,"", GreatThan)
+OutCON = arcpy.GetParameterAsText(0) + "\out_con.tif"
+outcon.save(OutCON)
+
+# Stream Links
+StreamLnk = arcpy.sa.StreamLink("out_con.tif", "out_flow",)
+StreamLink = arcpy.GetParameterAsText(0) + "\stream_link"
+StreamLnk.save(StreamLink)
+
+# Watershed tool
+WatShed = arcpy.sa.Watershed("out_flow", "stream_link")
+OutShed = arcpy.GetParameterAsText(0) + "\WatShed"
+WatShed.save(OutShed)
+
+# Raster to Polygon
+WatShedName = arcpy.GetParameterAsText(5)
+arcpy.RasterToPolygon_conversion("WatShed", WatShedName)
+
+# Stream to Polygon
+OPTION = arcpy.GetParameterAsText(6)
+StreamName = arcpy.GetParameterAsText(7)
+StreamLine = arcpy.sa.StreamToFeature("out_con.tif", "out_Flow", StreamName, OPTION)
