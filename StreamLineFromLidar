@@ -1,6 +1,8 @@
-import arcpy
-# Set WorkspaceEnvironment
+# This script is designed to be used within ArcPro's ArcPy module to create a script tool capable of automating stream polyline digitization from an LAS Dataset
 
+import arcpy
+
+# Set WorkspaceEnvironment
 arcpy.env.workspace = arcpy.GetParameterAsText(0)
 inLasD = arcpy.GetParameterAsText(1)
 
@@ -9,7 +11,6 @@ LASLyr1 = arcpy.CreateUniqueName(inLasD + 'Grnd')
 arcpy.MakeLasDatasetLayer_management(inLasD,LASLyr1,"2")
 
 # LAS Ground to Raster
-
 DEMName = arcpy.GetParameterAsText(2)
 arcpy.LasDatasetToRaster_conversion(LASLyr1, DEMName, "ELEVATION", "BINNING IDW NATURAL_NEIGHBOR", "FLOAT", "CELLSIZE", 3, 1)
 
