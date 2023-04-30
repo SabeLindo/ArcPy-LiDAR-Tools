@@ -1,0 +1,37 @@
+# This script is designed to be used within AcrPro's ArcPy module to create a script tool capable of making 2D and 3D building footprints from a classified LAS dataset
+
+import arcpy
+# Set WorkspaceEnvironment
+arcpy.env.workspace = r"arcpy.GetParameterAsText(0)"
+
+# Create LAS dataset
+inLasD = arcpy.GetParameterAsText(1)
+
+# LAS Dataset to DEM
+# Extract LAS Ground 
+LASLyr1 = arcpy.CreateUniqueName(inLasD + 'Grnd')   
+arcpy.MakeLasDatasetLayer_management(inLasD,LASLyr1,"2")
+
+# LAS Ground to Raster
+DEMName = arcpy.GetParameterAsText(2)
+arcpy.LasDatasetToRaster_conversion(LASLyr1, DEMName, "ELEVATION", None, "FLOAT", "CELLSIZE", 3, 1)
+
+
+# Extract LAS Buildings
+LASLyr2 = arcpy.CreateUniqueName(inLasD + 'Build')
+arcpy.MakeLasDatasetLayer_management(inLasD, LASLyr2, "6")
+arcpy.LasPointStatsAsRaster_management(LASLyr2, "Proj_Build", "PREDOMINANT_CLASS", "CELLSIZE", 5)
+Buildings = "Proj_build"
+
+# Building Raster to Polygon
+arcpy.RasterToPolygon_conversion(Buildings, "building_unedited", "NO_SIMPLIFY", "VALUE", "SINGLE_OUTER_PART", None)
+arcpy.EliminatePolygonPart_management("building_unedited", "building_edited", "AREA", "250 SquareFeet", 0, "CONTAINED_ONLY")
+
+# Smooth Polygon then Regularize Building Footprint
+buildingFP = arcpy.GetParameterAsText(3)
+arcpy.SmoothPolygon_cartography("building_edited", "building_smooth", "PAEK", "5 Feet", "FIXED_ENDPOINT", "NO_CHECK", None)
+arcpy.RegularizeBuildingFootprint_3d("building_smooth", buildingFP, "RIGHT_ANGLES", 3, 3, 0.15, 1.5, 0.1, 1000000, None, None, "DISTANCE")
+
+# LAS Building Multipatch to generate 3D Buildings
+outBuild = arcpy.GetParameterAsText(4)
+arcpy.LasBuildingMultipatch_3d(inLasD, buildingFP, DEMName, outBuild, "BUILDING_CLASSIFIED_POINTS", "5 Feet")
